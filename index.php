@@ -21,11 +21,8 @@
  */
 $day_start = mktime( 0, 0, 0 ); // Midnight for today
 $day_end = mktime( 23, 59, 59 ); // One second to midnight for tomorrow
-
 $i = 0;
-$color1 = "#16569E"; // Blue - "sender"
-$color2 = "#A82F2F"; // Red - "receiver"
-page_head();
+
 $dbh_prosody = new mysqli( '127.0.0.1', 'prosody', 'BQ6Mv4VJLWVaSWWX', 'prosody' );
 if( $dbh_prosody->connect_errno ) {
 	die( "Failed to connect to MySQL: " . $dbh_prosody->connect_error() );
@@ -34,12 +31,23 @@ $dbh_intranet = new mysqli( '127.0.0.1', 'prosody', 'BQ6Mv4VJLWVaSWWX', 'intrane
 if( $dbh_intranet->connect_errno ) {
 	die( "Failed to connect to MySQL: " . $dbh_intranet->connect_error() );
 }
-$res = $dbh_prosody->query( "SELECT * FROM `prosodyarchive` "
-		. "WHERE `when` BETWEEN $day_start AND $day_end "
-		. "AND (`user` = 'murrayc' OR `with` = 'murrayc@ggpsystems.co.uk')"
-		. "ORDER BY `when`" );
-$res->data_seek( 0 );
+
+page_head();
+// Do we have POST values yet? Only do the database bits when we do
+// Also, pre-pop the form if we have values
 page_form( $dbh_intranet );
+$query = "SELECT * FROM `prosodyarchive` ";
+// No guarantee that a WHERE is needed
+$query .= "WHERE ";
+// Date range selected?
+$query .= "`when` BETWEEN $day_start AND $day_end ";
+// Handle the AND gracefully
+$query .= "AND ";
+// Participant(s) selected?
+$query .= "(`user` = 'murrayc' OR `with` = 'murrayc@ggpsystems.co.uk')";
+$query .= "ORDER BY `when`";
+$res = $dbh_prosody->query( $query );
+$res->data_seek( 0 );
 while( $row = $res->fetch_assoc() ) {
 	if( $i == 0 ) {
 		// Odd numbered ID
@@ -64,17 +72,22 @@ function page_head() {
 	echo '<html><head><meta http-equiv="content-type" content="text/html; charset=UTF-8"><title>Conversation log</title><style type="text/css">.fieldset-auto-width{display: inline-block;}</style><link rel="stylesheet" href="//code.jquery.com/ui/1.11.4/themes/smoothness/jquery-ui.css"><script src="//code.jquery.com/jquery-1.10.2.js"></script><script src="//code.jquery.com/ui/1.11.4/jquery-ui.js"></script><link rel="stylesheet" href="/resources/demos/style.css"><script>$(function() {$( ".datepicker" ).datepicker();});</script></head><body><h3>Conversation log</h3>';
 }
 
-function page_form( $dbh ) {
+/**
+ * Displays a parameters form similar to OpenFire's monitoring plugin
+ * @param handle $dbh
+ * @param array $parameters
+ */
+function page_form( $dbh, $parameters = array( 'name_1' => NULL, 'name_2' => NULL, 'date_1' => NULL, 'date_2' => NULL ) ) {
 	echo '<form method="post"><fieldset>';
 	echo '<div style="float: left;"><fieldset style="display: inline-block;"><legend>Participant(s):</legend>';
-	intranet::form_staff( $dbh, 1 );
+	intranet::form_staff( $dbh, 1, $parameters[ 'name_1' ] );
 	echo '<br />'; // Necessary?
-	intranet::form_staff( $dbh, 2 );
+	intranet::form_staff( $dbh, 2, $parameters[ 'name_2' ] );
 	echo '</fieldset></div>';
 	echo '<div style="float: left;"><fieldset style="display: inline-block;"><legend>Date Range:</legend>';
-	echo '<label for="date_1" style="display: inline-block; width: 35px;">Start: </label><input type="text" class="datepicker" name="date_1" /> Use mm/dd/yyyy';
+	echo '<label for="date_1" style="display: inline-block; width: 35px;">Start: </label><input type="text" class="datepicker" name="date_1" value="' . $parameters[ 'date_1' ] . '" /> Use mm/dd/yyyy';
 	echo '<br />'; // Necessary?
-	echo '<label for="date_2" style="display: inline-block; width: 35px;">End: </label><input type="text" class="datepicker" name="date_2" /> Use mm/dd/yyyy';
+	echo '<label for="date_2" style="display: inline-block; width: 35px;">End: </label><input type="text" class="datepicker" name="date_2"  value="' . $parameters[ 'date_1' ] . '" /> Use mm/dd/yyyy';
 	echo '</fieldset></div>';
 	echo '</fieldset><input type="submit" value="Search" /></form>';
 }
@@ -84,19 +97,27 @@ function page_foot() {
 }
 
 class intranet {
+	
 	/**
 	 * Get all the staff names (and XMPP JIDs) from intranet.staff
-	 * @todo Stop it returning everyone.
 	 * @param handle $dbh
 	 * @param integer $field_id
+	 * @param string $selected_jid
 	 */
-	function form_staff( $dbh, $field_id ) {
-		$res = $dbh->query( "SELECT `name`, `xmpp` FROM `staff` WHERE `xmpp` != '' ORDER BY `name`" );
+	function form_staff( $dbh, $field_id, $selected_jid ) {
+		$query = "SELECT `name`, `xmpp` FROM `staff` WHERE `xmpp` != ''";
+		$query .= " AND (`end_date` = '0000-00-00' OR `end_date` >= '2015-03-20')";
+		$query .= " ORDER BY `name`";
+		$res = $dbh->query( $query );
 		$res->data_seek( 0 );
-		echo '<select name="select_'.$field_id.'">';
+		echo '<select name="select_' . $field_id . '">';
 		echo '<option value="0">Any</option>';
 		while( $row = $res->fetch_assoc() ) {
-			echo '<option value="' . $row[ 'xmpp' ] . '">' . $row[ 'name' ] . '</option>';
+			echo '<option value="' . $row[ 'xmpp' ] . '"';
+			if( $row['xmpp'] == $selected_jid) {
+				echo ' selected="selected"';
+			}
+			echo '>' . $row[ 'name' ] . '</option>';
 		}
 		echo '</select>';
 	}
@@ -118,6 +139,7 @@ class intranet {
 }
 
 class prosody {
+
 	const DOMAIN = "ggpsystems.co.uk";
 
 	/**
