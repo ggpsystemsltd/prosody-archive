@@ -2,11 +2,15 @@
 
 /**
  * Create a "conversation log" table from the prosody archive database
- *
+ * 
  * @author Murray Crane <murray.crane@ggpsystems.co.uk>
  * @copyright (c) 2015, GGP Systems Limited
  * @license BSD 3-clause license (see LICENSE)
  * @version 1.0
+ */
+/**
+ * @todo Need to rethink how `when` is used so that we stop passing it in as a WHEN clause, but rather use the first we get back to specify the datetimes
+ * @todo Do we need `when` at all? Couldn't we just record the conversation date and let everything else work itself out?
  */
 $dbh_prosody = new mysqli( '127.0.0.1', 'prosody', 'BQ6Mv4VJLWVaSWWX', 'prosody' );
 if( $dbh_prosody->connect_errno ) {
@@ -17,17 +21,19 @@ $query = "SELECT `id`, `user`, `with`, `when` FROM `prosodyarchive` ";
 $query .= "WHERE `id` NOT IN ( SELECT DISTINCT( `msg_id` ) FROM `prosodyconversation` ORDER BY `msg_id` ) ";
 $query .= "AND `id` % 2 != 0 ";
 $query .= "ORDER BY `when`";
+//$query .= "AND `when` BETWEEN $unixtime_1 AND $unixtime_2 ";
 $res = $dbh_prosody->query( $query );
 $res->data_seek( 0 );
 $row = $res->fetch_assoc();
 
 if( !is_null( $row ) ) {
-	$t_when = getdate( $row[ 'when' ] );
+    // at this juncture, `when` is a timestamp; calculate midnight and a second to midnight
+	$t_when = getdate($row['when']);
 	$t_parameters[ 'id' ] = $row[ 'id' ];
 	$t_parameters[ 'user_1' ] = $row[ 'user' ];
 	$t_parameters[ 'user_2' ] = prosody::jid_to_user( $row[ 'with' ] );
-	$t_parameters[ 'time_1' ] = mktime( 0, 0, 0, $t_when[ 'mon' ], $t_when[ 'mday' ], $t_when[ 'year' ] );
-	$t_parameters[ 'time_2' ] = mktime( 23, 59, 59, $t_when[ 'mon' ], $t_when[ 'mday' ], $t_when[ 'year' ] );
+	$t_parameters[ 'time_1' ] = mktime(0,0,0,$t_when['mon'],$t_when['mday'],$t_when['year']);
+	$t_parameters[ 'time_2' ] = mktime(23,59,59,$t_when['mon'],$t_when['mday'],$t_when['year']);
 
 	conversation::enumerate( $dbh_prosody, $t_parameters );
 }
@@ -37,15 +43,15 @@ $dbh_prosody->close();
 class conversation {
 
 	/**
-	 * + Get the first message from the archive db where the id > the id
-	 *   from the previous step and the participants are the same and it
+	 * + Get the first message from the archive db where the id > the id 
+	 *   from the previous step and the participants are the same and it 
 	 *   occured on the same day
-	 * + Write the two ids from the first and second steps to the
+	 * + Write the two ids from the first and second steps to the 
 	 *   conversation db
-	 * + Redo the second step, but use the second step id in place of the
+	 * + Redo the second step, but use the second step id in place of the 
 	 *   first step id (WARNING!!! RECURSION!!! DON'T FORGET THE EXIT
 	 *   CONDITION!!!)
-	 *
+	 * 
 	 * @param mixed $p_dbh
 	 * @param mixed $p_parameters
 	 */
@@ -67,8 +73,8 @@ class conversation {
 			$t_query .= "NULL";
 		} else {
 			$t_query .= $row[ 'id' ];
-		}
-		$t_query .= ", '" . date( "Y-m-d", $p_parameters[ 'time_1' ] ) . "' )";
+		}		
+		$t_query .= ", '" . date("Y-m-d",$p_parameters['time_1']). "' )";
 		if( !$p_dbh->query( $t_query ) ) {
 			echo "ERROR!!! " . $p_dbh->error;
 			echo "<br/>" . $t_query;

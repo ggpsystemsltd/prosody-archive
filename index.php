@@ -172,7 +172,7 @@ $dbh_intranet->close();
 $dbh_prosody->close();
 
 function page_head() {
-	echo '<html><head><meta http-equiv="content-type" content="text/html; charset=UTF-8"><title>Conversation log</title><style type="text/css">.fieldset-auto-width{display: inline-block;}</style><link rel="stylesheet" href="//code.jquery.com/ui/1.11.4/themes/smoothness/jquery-ui.css"><script src="//code.jquery.com/jquery-1.10.2.js"></script><script src="//code.jquery.com/ui/1.11.4/jquery-ui.js"></script><link rel="stylesheet" href="/resources/demos/style.css"><script>$(function() {$( ".datepicker" ).datepicker({ minDate: new Date(2015, 2, 20) });});</script></head><body><h3>Conversation log</h3>';
+	echo '<html><head><meta http-equiv="content-type" content="text/html; charset=UTF-8"><title>Conversation log</title><link rel="stylesheet" type="text/css" href="/style/ggp.css" media="screen" /><style type="text/css">.fieldset-auto-width{display: inline-block;}</style><link rel="stylesheet" href="//code.jquery.com/ui/1.11.4/themes/smoothness/jquery-ui.css"><script src="//code.jquery.com/jquery-1.10.2.js"></script><script src="//code.jquery.com/ui/1.11.4/jquery-ui.js"></script><link rel="stylesheet" href="/resources/demos/style.css"><script>$(function() {$( ".datepicker" ).datepicker({ minDate: new Date(2015, 2, 20) });});</script></head><body class="body"><h1>GGP Systems Ltd intranet</h1><h2>Conversation log</h2>';
 }
 
 /**
@@ -196,7 +196,7 @@ function page_form( $dbh, $parameters = array( 'select_1' => NULL, 'select_2' =>
 }
 
 function page_foot() {
-	echo '</body></html>';
+	echo '<div class="address"><address>Author: [ <script type="text/javascript"></script> ]</address><address>Copyright &copy; 2015 GGP Systems Ltd</address><address>Page rendered </address><address>Remote IP: </address></div></body></html>';
 }
 
 function array_flatten( $array ) {
