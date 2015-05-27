@@ -97,54 +97,90 @@ $t_interval = $t_interval->format( '%a' );
 
 if( isset( $parameters['submit'] ) ) {
 	for( $i = 0; $i <= $t_interval; $i++ ) {
-		$query = "SELECT `msg_id`, `nxt_id` FROM prosodyconversation " .
-				"WHERE `conv_date` = '";
-		$query .= date( "Y-m-d", strtotime( "+" . $i . " days", $unixtime_1 ) );
-		$query .= "'";
+		$t_query_date = date( "Y-m-d", strtotime( "+" . $i . " days", $unixtime_1 ) );
+		if( !$dbh_prosody->query( "CREATE TEMPORARY TABLE IF NOT EXISTS tmp_conv AS (SELECT co.conv_id, MAX(CASE WHEN us.name='user1' THEN co.user_name ELSE NULL END) AS user1, MAX(CASE WHEN us.name='user2' THEN co.user_name ELSE NULL END) AS user2 FROM `conversation` AS co INNER JOIN `user_types` AS us ON co.user_id = us.id WHERE co.date='".$t_query_date."' GROUP BY co.conv_id)" )) {
+			printf("Temp Table Error: %s\n", $dbh_prosody->error);
+		}
+		/** 
+		 * The below $query is wrong!!! Need more logic around it.
+		 * 'select_1' may have a JID in it (for the logged in/selected 
+		 * user), or it could be NULL (manager asking for all 
+		 * conversations). 'select_2' will either be NULL or have a JID
+		 * in it also.
+		 */
+		$query = "SELECT conv_id FROM tmp_conv";
+		$t_user_1_flag = false;
+		$t_user_2_flag = false;
+		if( !is_null( $parameters[ 'select_1' ] )) {
+			// select_1 has a JID
+			$t_user_1_flag = true;
+			$t_user_1 = prosody::jid_to_user( $parameters[ 'select_1' ]);
+		}
+		if( !is_null( $parameters[ 'select_2' ] )) {
+			// select_2 has a JID
+			$t_user_2_flag = true;
+			$t_user_2 = prosody::jid_to_user( $parameters[ 'select_2' ]);
+		}
+		$t_users_table = array( $t_user_1_flag, $t_user_2_flag );
+		switch( $t_users_table ) {
+			case array( false, false ):
+				// Neither user selected
+				break;
+			case array( true, false ):
+				// User_1 selected
+				$query .= " WHERE user1='$t_user_1' OR user2='$t_user_1'";
+				break;
+			case array( false, true ):
+				// User_2 selected
+				$query .= " WHERE user1='$t_user_2' OR user2='$t_user_2'";
+				break;
+			case array( true, true ):
+				// Both users selected
+				$query .= " WHERE (user1='$t_user_1' AND user2='$t_user_2') OR (user1='$t_user_2' AND user2='$t_user_1')";
+				break;
+		}
 		$res = $dbh_prosody->query( $query );
 		$res->data_seek( 0 );
 		while( $row = $res->fetch_assoc() ) {
-			$t_messages[] = $row;
+			$t_conversations[] = (int) $row[ 'conv_id' ];
 		}
+		// Drop the temp table
+		$dbh_prosody->query( "DROP TEMPORARY TABLE IF EXISTS tmp_conv;" );
 	}
 	unset( $query );
 	unset( $res );
 	unset( $row );
 
-	foreach( $t_messages as $t_msg_tuple ) {
-		if( !in_array( $t_msg_tuple[ 'msg_id' ], $t_msg_list ) ) {
-			$t_msg_list[] = $t_msg_tuple[ 'msg_id' ];
+	foreach( $t_conversations as $t_conv_id ) {
+		$result = $dbh_prosody->query( "SELECT msg_id FROM conv_msg WHERE conv_id=$t_conv_id" );
+		$result->data_seek( 0 );
+		while( $row = $result->fetch_assoc() ) {
+			$t_msg_list[$t_conv_id][] = (int) $row[ 'msg_id' ];
 		}
-		$t_msg_list[] = $t_msg_tuple[ 'nxt_id' ];
 	}
-	unset( $t_messages );
-	unset( $t_msg_tuple );
+	unset( $query );
+	unset( $result );
+	unset( $row );
 
 	$t_div_flag = false;
 	$t_colour_1 = "#cfdbf3";
 	$t_colour_2 = "#eff3fb";
 	$i = 0;
-	foreach( $t_msg_list as $t_msg_id ) {
-		if( !is_null( $t_msg_id ) ) {
+	foreach( $t_msg_list as $t_conv_id => $t_conv_msgs ) {
+		echo '<fieldset style="border-radius: 5px; background-color: ';
+		echo ( $i ) ? $t_colour_1 : $t_colour_2;
+		echo ';">';
+		echo '<legend style="background-color: #ffffff;">';
+		echo date( "D, jS M Y", $row[ 'when' ] );
+		echo '</legend>';
+		foreach( $t_conv_msgs as $t_msg_id ) {
 			$query = "SELECT * FROM `prosodyarchive` "
 					. "WHERE `id`=$t_msg_id ";
-			if( !is_null( $parameters[ 'select_1' ] ) ) {
-				$query .= "AND (`user` = '" . prosody::jid_to_user( $parameters[ 'select_1' ] ) . "' OR `with` = '" . $parameters[ 'select_1' ] . "') ";
-			}
-			if( !is_null( $parameters[ 'select_1' ] ) ) {
-				$query .= "OR (`user` = '" . prosody::jid_to_user( $parameters[ 'select_2' ] ) . "' OR `with` = '" . $parameters[ 'select_2' ] . "') ";
-			}
-			$res = $dbh_prosody->query( $query );
-			$res->data_seek( 0 );
-			$row = $res->fetch_assoc();
+			$result = $dbh_prosody->query( $query );
+			$result->data_seek( 0 );
+			$row = $result->fetch_assoc();
 			if( !is_null( $row ) ) {
 				if( !$t_div_flag ) {
-					echo '<fieldset style="border-radius: 5px; background-color: ';
-					echo ( $i ) ? $t_colour_1 : $t_colour_2;
-					echo ';">';
-					echo '<legend style="background-color: #ffffff;">';
-					echo date( "D, jS M Y", $row[ 'when' ] );
-					echo '</legend>';
 				}
 				$t_div_flag = true;
 				$from_jid = $row[ 'user' ] . "@" . prosody::DOMAIN;
@@ -158,11 +194,9 @@ if( isset( $parameters['submit'] ) ) {
 				echo $stanza[ '__array' ][ 1 ][ '__array' ][ 0 ];
 				echo "</p>";
 			}
-		} elseif( $t_div_flag ) {
-			( $i ) ? $i-- : $i++; // Ternary operator flip-flop
-			echo '</fieldset>';
-			$t_div_flag = false;
 		}
+		( $i ) ? $i-- : $i++; // Ternary operator flip-flop
+		echo '</fieldset>';
 	}
 }
 
@@ -181,7 +215,7 @@ function page_head() {
  * @param mixed $parameters
  */
 function page_form( $dbh, $parameters = array( 'select_1' => NULL, 'select_2' => NULL, 'date_1' => NULL, 'date_2' => NULL ) ) {
-	echo '<form action="/prosody-archive/index.php" method="post"><fieldset style="border-radius: 5px;">';
+	echo '<form action="/prosody-archive/dev/index.php" method="post"><fieldset style="border-radius: 5px;">';
 	echo '<div style="float: left;"><fieldset style="display: inline-block; border-radius: 5px;"><legend>Participant(s):</legend>';
 	intranet::form_staff( $dbh, 1, $parameters[ 'select_1' ] );
 	echo '<br />';
