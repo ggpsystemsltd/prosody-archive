@@ -8,16 +8,6 @@
  * @license BSD 3-clause license (see LICENSE)
  * @version 2.0
  */
-/**
- * Milestones: 
- *  - output stanzas for today: complete
- *  - allow for participants and dates to be specified: complete
- *  - sort stanzas into "conversations" (using the extra table): complete
- *  - compact the output by not outputting dates when everything we are
- *    outputting is in a single day: complete
- *  - authentication to stop knowlesspeople from misusing the archive: complete
- *  - "up to the minute" logging output: complete
- */
 $dbh_intranet = new mysqli( '127.0.0.1', 'prosody', 'BQ6Mv4VJLWVaSWWX', 'intranet' );
 if( $dbh_intranet->connect_errno ) {
 	die( "Failed to connect to MySQL: " . $dbh_intranet->connect_error() );
@@ -27,7 +17,7 @@ if( $dbh_prosody->connect_errno ) {
 	die( "Failed to connect to MySQL: " . $dbh_prosody->connect_error() );
 }
 
-$unixtime_1 = mktime( 0, 0, 0, 3, 20, 2015 );
+$unixtime_1 = mktime( 0, 0, 0 );
 $unixtime_2 = mktime( 23, 59, 59 );
 $unixtime_3 = mktime( 0, 0, 0 );
 $managers = array( "accounts", "davidj", "murrayc", "tim maxwell" );
@@ -96,13 +86,6 @@ if( isset( $parameters['submit'] ) ) {
 		if( !$dbh_prosody->query( "CREATE TEMPORARY TABLE IF NOT EXISTS tmp_conv AS (SELECT co.conv_id, MAX(CASE WHEN us.name='user1' THEN co.user_name ELSE NULL END) AS user1, MAX(CASE WHEN us.name='user2' THEN co.user_name ELSE NULL END) AS user2 FROM `conversation` AS co INNER JOIN `user_types` AS us ON co.user_id = us.id WHERE co.date='".$t_query_date."' GROUP BY co.conv_id)" )) {
 			printf("Temp Table Error: %s\n", $dbh_prosody->error);
 		}
-		/** 
-		 * The below $query is wrong!!! Need more logic around it.
-		 * 'select_1' may have a JID in it (for the logged in/selected 
-		 * user), or it could be NULL (manager asking for all 
-		 * conversations). 'select_2' will either be NULL or have a JID
-		 * in it also.
-		 */
 		$query = "SELECT conv_id FROM tmp_conv";
 		$t_user_1_flag = false;
 		$t_user_2_flag = false;
@@ -210,7 +193,7 @@ function page_head() {
  * @param mixed $parameters
  */
 function page_form( $dbh, $parameters = array( 'select_1' => NULL, 'select_2' => NULL, 'date_1' => NULL, 'date_2' => NULL ) ) {
-	echo '<form action="/prosody-archive/dev/index.php" method="post"><fieldset style="border-radius: 5px;">';
+	echo '<form action="/prosody-archive/index.php" method="post"><fieldset style="border-radius: 5px;">';
 	echo '<div style="float: left;"><fieldset style="display: inline-block; border-radius: 5px;"><legend>Participant(s):</legend>';
 	intranet::form_staff( $dbh, 1, $parameters[ 'select_1' ] );
 	echo '<br />';
