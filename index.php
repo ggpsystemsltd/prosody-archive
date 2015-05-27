@@ -6,7 +6,7 @@
  * @author Murray Crane <murray.crane@ggpsystems.co.uk>
  * @copyright (c) 2015, GGP Systems Limited
  * @license BSD 3-clause license (see LICENSE)
- * @version 1.0
+ * @version 2.0
  */
 /**
  * Milestones: 
@@ -16,12 +16,7 @@
  *  - compact the output by not outputting dates when everything we are
  *    outputting is in a single day: complete
  *  - authentication to stop knowlesspeople from misusing the archive: complete
- *  - If someone's not going to be in here all that often, a "once per 
- *    minute" cron job for conversation.php ensures the conv_log is up 
- *    to date and won't have a great deal of work to do when it does run 
- *    (a really basic worker model). This means a major rethink of the 
- *    current conversation.php; it'll need to "fix" the ending of 
- *    conversations when they are added to.
+ *  - "up to the minute" logging output: complete
  */
 $dbh_intranet = new mysqli( '127.0.0.1', 'prosody', 'BQ6Mv4VJLWVaSWWX', 'intranet' );
 if( $dbh_intranet->connect_errno ) {
@@ -170,7 +165,7 @@ if( isset( $parameters['submit'] ) ) {
 		echo '<fieldset style="border-radius: 5px; background-color: ';
 		echo ( $i ) ? $t_colour_1 : $t_colour_2;
 		echo ';">';
-		echo '<legend style="background-color: #ffffff;">';
+		echo '<legend style="background-color: #9999cc;">';
 		echo date( "D, jS M Y", $row[ 'when' ] );
 		echo '</legend>';
 		foreach( $t_conv_msgs as $t_msg_id ) {
