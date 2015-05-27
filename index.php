@@ -140,17 +140,14 @@ if( isset( $parameters['submit'] ) ) {
 	unset( $result );
 	unset( $row );
 
-	$t_div_flag = false;
 	$t_colour_1 = "#cfdbf3";
 	$t_colour_2 = "#eff3fb";
 	$i = 0;
 	foreach( $t_msg_list as $t_conv_id => $t_conv_msgs ) {
+		$t_div_flag = false;
 		echo '<fieldset style="border-radius: 5px; background-color: ';
 		echo ( $i ) ? $t_colour_1 : $t_colour_2;
 		echo ';">';
-		echo '<legend style="background-color: #9999cc;">';
-		echo date( "D, jS M Y", $row[ 'when' ] );
-		echo '</legend>';
 		foreach( $t_conv_msgs as $t_msg_id ) {
 			$query = "SELECT * FROM `prosodyarchive` "
 					. "WHERE `id`=$t_msg_id ";
@@ -159,6 +156,9 @@ if( isset( $parameters['submit'] ) ) {
 			$row = $result->fetch_assoc();
 			if( !is_null( $row ) ) {
 				if( !$t_div_flag ) {
+					echo '<legend style="background-color: #9999cc;">';
+					echo date( "D, jS M Y", $row[ 'when' ] );
+					echo '</legend>';
 				}
 				$t_div_flag = true;
 				$from_jid = $row[ 'user' ] . "@" . prosody::DOMAIN;
